@@ -5,7 +5,7 @@ require_relative 'spec_helper'
 [
   '/usr/local/etc/elasticsearch',
   '/usr/local/var/data/elasticsearch',
-  '/usr/local/var/log/elasticsearch',
+  '/usr/local/var/log/elasticsearch'
 ].each do |p|
   describe file(p) do
     it { should be_directory }
@@ -49,7 +49,7 @@ describe file('/usr/local/etc/elasticsearch/elasticsearch.yml') do
     'node.name: .+',
     'path.conf: \/.+',
     'path.data: \/.+',
-    'path.logs: \/.+',
+    'path.logs: \/.+'
 
   ].each do |line|
     its(:content) { should contain(/#{line}/) }
@@ -64,6 +64,6 @@ describe file('/usr/local/etc/elasticsearch/logging.yml') do
   [
     'Configuration set by Chef'
   ].each do |line|
-    its(:content) { should match(/#{line}/)}
+    its(:content) { should match(/#{line}/) }
   end
 end

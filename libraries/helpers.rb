@@ -1,6 +1,5 @@
 module ElasticsearchCookbook
   module Helpers
-
     def get_package_url(new_resource, node)
       # short circuit if URL is provided
       return new_resource.package_url if new_resource.package_url
@@ -25,15 +24,15 @@ module ElasticsearchCookbook
     end
 
     def get_source_home_dir(new_resource, node)
-      new_resource.dir || node.ark[:prefix_home]
+      new_resource.dir || node['ark']['prefix_home']
     end
 
     def get_source_root_dir(new_resource, node)
-      new_resource.dir || node.ark[:prefix_root]
+      new_resource.dir || node['ark']['prefix_root']
     end
 
     # This method takes a hash, but will convert to mash
-    def print_value(data, key, options={})
+    def print_value(data, key, options = {})
       separator = options[:separator] || ': '
 
       final_value = format_value(find_value(data, key))
@@ -54,16 +53,20 @@ module ElasticsearchCookbook
     end
 
     def format_value(value)
-      unless value.nil?
-        if value.is_a?(Array)
-          value.join(',').to_s
-        elsif value.respond_to?(:empty?) && value.empty?
-          nil # anything that answers to empty? should be nil again
-        else
-          value.to_s
-        end
+      return value if value.nil?
+
+      if value.is_a?(Array)
+        value.join(',').to_s
+      elsif value.respond_to?(:empty?) && value.empty?
+        nil # anything that answers to empty? should be nil again
+      else
+        value.to_s
       end
     end
 
+    def compute_allocated_memory
+      half = (node['memory']['total'].to_i * 0.5).floor / 1024
+      half > 31_000 ? '31g' : "#{half}m"
+    end
   end
 end

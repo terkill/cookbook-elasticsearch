@@ -33,7 +33,7 @@ elasticsearch_configure 'my_elasticsearch' do
   dir '/usr/local/awesome'
   user 'foo'
   group 'bar'
-  logging({:"action" => 'INFO'})
+  logging(action: 'INFO')
 
   allocated_memory '123m'
   thread_stack_size '512k'
@@ -48,9 +48,7 @@ elasticsearch_configure 'my_elasticsearch' do
                 -XX:+PrintGCDetails
               CONFIG
 
-  configuration ({
-    'node.name' => 'crazy'
-  })
+  configuration('node.name' => 'crazy')
 
   action :manage
 end
@@ -64,5 +62,4 @@ elasticsearch_service 'elasticsearch-crazy' do
   path_conf '/usr/local/awesome/etc/elasticsearch'
   pid_path '/usr/local/awesome/var/run'
   user 'foo'
-  group 'bar'
 end
