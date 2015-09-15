@@ -27,11 +27,14 @@ class Chef
           cookbook new_resource.init_cookbook
           owner 'root'
           mode 0755
-          variables(nofile_limit: new_resource.nofile_limit,
+          variables(es_user: new_resource.user,
+                    es_group: new_resource.group,
+                    es_home: new_resource.home,?
+
+                    nofile_limit: new_resource.nofile_limit,
                     memlock_limit: new_resource.memlock_limit,
                     pid_file: new_resource.pid_file,
                     path_conf: new_resource.path_conf,
-                    user: new_resource.user,
                     platform_family: node.platform_family,
                     bindir: new_resource.bindir,
                     http_port: 9200, # TODO: does the init script really need this?

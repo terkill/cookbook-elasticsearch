@@ -26,7 +26,7 @@ class Chef
     attribute(:service_actions, kind_of: [Symbol, Array], default: [:enable])
 
     # allow overridable init script
-    attribute(:init_source, kind_of: String, default: 'elasticsearch.init.erb')
+    attribute(:init_source, kind_of: String, default: 'initscript.erb')
     attribute(:init_cookbook, kind_of: String, default: 'elasticsearch')
   end
 end
