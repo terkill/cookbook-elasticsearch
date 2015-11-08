@@ -23,7 +23,11 @@ class Chef
 
         unless plugin_exists
           # automatically raises on error, logs command output
-          shell_out!("#{new_resource.bindir}/plugin -install #{name}#{version}#{url}".split(' '), user: new_resource.user, group: new_resource.group)
+          if new_resource.user
+            shell_out!("#{new_resource.bindir}/plugin -install #{name}#{version}#{url}".split(' '), user: new_resource.user, group: new_resource.group)
+          else
+            shell_out!("#{new_resource.bindir}/plugin -install #{name}#{version}#{url}".split(' '))
+          end
           new_resource.updated_by_last_action(true)
         end
       end
@@ -45,7 +49,11 @@ class Chef
 
         if plugin_exists
           # automatically raises on error, logs command output
-          shell_out!("#{new_resource.bindir}/plugin -remove #{name}".split(' '), user: new_resource.user, group: new_resource.group)
+          if new_resource.user
+            shell_out!("#{new_resource.bindir}/plugin -remove #{name}".split(' '), user: new_resource.user, group: new_resource.group)
+          else
+            shell_out!("#{new_resource.bindir}/plugin -remove #{name}".split(' '))
+          end
           new_resource.updated_by_last_action(true)
         end
       end

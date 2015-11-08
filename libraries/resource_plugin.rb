@@ -15,7 +15,7 @@ class Chef
     attribute(:version, kind_of: String)
     attribute(:url, kind_of: String)
 
-    attribute(:user, kind_of: String, default: 'elasticsearch')
-    attribute(:group, kind_of: String, default: 'elasticsearch')
+    attribute(:user, kind_of: String)
+    attribute(:group, kind_of: String)
   end
 end

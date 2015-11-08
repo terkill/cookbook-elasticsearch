@@ -24,6 +24,7 @@ class Chef
     attribute(:package_options, kind_of: String, default: nil)
 
     # attributes used by the tarball-flavor provider
+    attribute(:win_install_dir, kind_of: String, default: nil)
     attribute(:dir, kind_of: String, default: nil)
     attribute(:owner, kind_of: String, default: 'elasticsearch')
     attribute(:group, kind_of: String, default: 'elasticsearch')

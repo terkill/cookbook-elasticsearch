@@ -88,7 +88,7 @@ class Chef
 
     def install_tarball_wrapper_action
       include_recipe 'ark'
-      include_recipe 'curl'
+      include_recipe 'curl' unless node['platform_family'] == 'windows'
 
       ark_r = ark 'elasticsearch' do
         url   determine_download_url(new_resource, node)
@@ -99,6 +99,7 @@ class Chef
         checksum determine_download_checksum(new_resource, node)
         prefix_root   get_tarball_root_dir(new_resource, node)
         prefix_home   get_tarball_home_dir(new_resource, node)
+        win_install_dir new_resource.win_install_dir if node['platform_family'] == 'windows'
 
         not_if do
           link   = "#{new_resource.dir}/elasticsearch"
