@@ -23,10 +23,10 @@ class Chef
 
         unless plugin_exists
           # automatically raises on error, logs command output
-          if new_resource.user
-            shell_out!("#{new_resource.bindir}/plugin -install #{name}#{version}#{url}".split(' '), user: new_resource.user, group: new_resource.group)
+          unless node['platform_family'] == 'windows'
+            shell_out!("#{new_resource.bindir}/plugin install #{name}#{version}#{url}".split(' '), user: new_resource.user, group: new_resource.group)
           else
-            shell_out!("#{new_resource.bindir}/plugin -install #{name}#{version}#{url}".split(' '))
+            system("#{new_resource.bindir}/plugin install #{name}#{version}#{url}")
           end
           new_resource.updated_by_last_action(true)
         end
