@@ -1,3 +1,4 @@
+
 class Chef
   # Chef Provider for configuring an elasticsearch service in the init system
   class Provider::ElasticsearchService < Chef::Provider::LWRPBase
@@ -7,73 +8,81 @@ class Chef
 
     action :configure do
       converge_by('configure elasticsearch service') do
-        # pick one if we have been given a path
-        unless new_resource.pid_file
-          new_resource.pid_file "#{new_resource.pid_path}/#{Chef::Config[:node_name].to_s.gsub(/\W/, '_')}.pid"
-        end
+        if node['platform_family'] == 'windows'
+          require 'win32/service'
+          unless ::Win32::Service.exists?(new_resource.service_name)
+            system("#{new_resource.bindir}/service.bat install #{new_resource.service_name}")
+            new_resource.updated_by_last_action(true)
+          end
+        else
+          # pick one if we have been given a path
+          unless new_resource.pid_file
+            new_resource.pid_file "#{new_resource.pid_path}/#{Chef::Config[:node_name].to_s.gsub(/\W/, '_')}.pid"
+          end
 
-        d_r = directory new_resource.pid_path do
-          mode '0755'
-          recursive true
-          action :nothing
-        end
-        d_r.run_action(:create)
-        new_resource.updated_by_last_action(true) if d_r.updated_by_last_action?
+          d_r = directory new_resource.pid_path do
+            mode '0755'
+            recursive true
+            action :nothing
+          end
+          d_r.run_action(:create)
+          new_resource.updated_by_last_action(true) if d_r.updated_by_last_action?
 
-        # Create service
-        #
-        init_r = template "/etc/init.d/#{new_resource.service_name}" do
-          source new_resource.init_source
-          cookbook new_resource.init_cookbook
-          owner 'root'
-          mode 0755
-          variables(nofile_limit: new_resource.nofile_limit,
-                    memlock_limit: new_resource.memlock_limit,
-                    pid_file: new_resource.pid_file,
-                    path_conf: new_resource.path_conf,
-                    user: new_resource.user,
-                    platform_family: node.platform_family,
-                    bindir: new_resource.bindir,
-                    http_port: 9200, # TODO: does the init script really need this?
-                    node_name: new_resource.node_name,
-                    service_name: new_resource.service_name,
-                    args: new_resource.args)
-          action :nothing
-        end
-        init_r.run_action(:create)
-        new_resource.updated_by_last_action(true) if init_r.updated_by_last_action?
+          # Create service
+          #
+          init_r = template "/etc/init.d/#{new_resource.service_name}" do
+            source new_resource.init_source
+            cookbook new_resource.init_cookbook
+            owner 'root'
+            mode 0755
+            variables(nofile_limit: new_resource.nofile_limit,
+                      memlock_limit: new_resource.memlock_limit,
+                      pid_file: new_resource.pid_file,
+                      path_conf: new_resource.path_conf,
+                      user: new_resource.user,
+                      platform_family: node.platform_family,
+                      bindir: new_resource.bindir,
+                      http_port: 9200, # TODO: does the init script really need this?
+                      node_name: new_resource.node_name,
+                      service_name: new_resource.service_name,
+                      args: new_resource.args)
+            action :nothing
+          end
+          init_r.run_action(:create)
+          new_resource.updated_by_last_action(true) if init_r.updated_by_last_action?
 
-        # Increase open file and memory limits
-        #
-        bash_r = bash 'enable user limits' do
-          user 'root'
+          # Increase open file and memory limits
+          #
+          bash_r = bash 'enable user limits' do
+            user 'root'
 
-          code <<-END.gsub(/^              /, '')
-            echo 'session    required   pam_limits.so' >> /etc/pam.d/su
-          END
+            code <<-END.gsub(/^              /, '')
+              echo 'session    required   pam_limits.so' >> /etc/pam.d/su
+            END
 
-          not_if { ::File.read('/etc/pam.d/su').match(/^session    required   pam_limits\.so/) }
-          action :nothing
-        end
-        bash_r.run_action(:run)
-        new_resource.updated_by_last_action(true) if bash_r.updated_by_last_action?
+            not_if { ::File.read('/etc/pam.d/su').match(/^session    required   pam_limits\.so/) }
+            action :nothing
+          end
+          bash_r.run_action(:run)
+          new_resource.updated_by_last_action(true) if bash_r.updated_by_last_action?
 
-        secf_r = file '/etc/security/limits.d/10-elasticsearch.conf' do
-          content <<-END.gsub(/^          /, '')
-            #{new_resource.user} - nofile    #{new_resource.nofile_limit}
-            #{new_resource.user} - memlock   #{new_resource.memlock_limit}
-          END
-        end
-        secf_r.run_action(:create)
-        new_resource.updated_by_last_action(true) if secf_r.updated_by_last_action?
+          secf_r = file '/etc/security/limits.d/10-elasticsearch.conf' do
+            content <<-END.gsub(/^          /, '')
+              #{new_resource.user} - nofile    #{new_resource.nofile_limit}
+              #{new_resource.user} - memlock   #{new_resource.memlock_limit}
+            END
+          end
+          secf_r.run_action(:create)
+          new_resource.updated_by_last_action(true) if secf_r.updated_by_last_action?
 
-        svc_r = service new_resource.service_name do
-          supports :status => true, :restart => true
-          action :nothing
-        end
-        new_resource.service_actions.each do |act|
-          svc_r.run_action(act)
-          new_resource.updated_by_last_action(true) if svc_r.updated_by_last_action?
+          svc_r = service new_resource.service_name do
+            supports :status => true, :restart => true
+            action :nothing
+          end
+          new_resource.service_actions.each do |act|
+            svc_r.run_action(act)
+            new_resource.updated_by_last_action(true) if svc_r.updated_by_last_action?
+          end
         end
       end
     end
