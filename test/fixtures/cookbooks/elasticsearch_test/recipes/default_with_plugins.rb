@@ -10,7 +10,20 @@
 # default cookbook).
 
 # see README.md and test/fixtures/cookbooks for more examples!
-include_recipe 'elasticsearch::default'
+include_recipe 'chef-sugar'
 
-# by default, no plugins
-elasticsearch_plugin 'mobz/elasticsearch-head'
+# see README.md and test/fixtures/cookbooks for more examples!
+elasticsearch_user 'elasticsearch'
+elasticsearch_install 'elasticsearch' do
+  type node['elasticsearch']['install_type'].to_sym # since TK can't symbol.
+end
+elasticsearch_configure 'elasticsearch'
+elasticsearch_service 'elasticsearch' do
+  service_actions [:enable, :start]
+end
+
+# by default, no plugins, but we do one here.
+elasticsearch_plugin 'head' do
+  url 'mobz/elasticsearch-head'
+  notifies :restart, 'elasticsearch_service[elasticsearch]', :delayed
+end

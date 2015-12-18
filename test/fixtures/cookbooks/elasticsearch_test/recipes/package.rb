@@ -8,31 +8,16 @@ elasticsearch_user 'foobar' do
   uid 1111
   gid 2222
   shell '/bin/sh'
-  homedir '/usr/local/myhomedir'
-end
-
-elasticsearch_user 'deleteme'
-
-elasticsearch_user 'deleteme' do
-  action :remove
+  instance_name 'special_package_instance'
 end
 
 # we're going to test both types on a single system!
 elasticsearch_install 'elasticsearch_p' do
   type :package
-end
-
-elasticsearch_install 'elasticsearch_s' do
-  type :tarball
-  dir '/usr/local/awesome'
-  owner 'foo'
-  group 'bar'
+  instance_name 'special_package_instance'
 end
 
 elasticsearch_configure 'my_elasticsearch' do
-  dir '/usr/local/awesome'
-  user 'foo'
-  group 'bar'
   logging(:action => 'INFO')
 
   allocated_memory '123m'
@@ -48,21 +33,18 @@ elasticsearch_configure 'my_elasticsearch' do
                 -XX:+PrintGCDetails
               CONFIG
 
-  configuration('node.name' => 'crazy')
-
+  configuration('node.name' => 'arbitrary_name')
+  # plugin_dir '/usr/local/awesome/elasticsearch-1.7.3/plugins'
   action :manage
+  instance_name 'special_package_instance'
 end
 
-elasticsearch_plugin 'mobz/elasticsearch-head' do
-  user 'foo'
-  group 'bar'
-  plugin_dir '/usr/local/awesome/elasticsearch-1.7.3/plugins'
+elasticsearch_plugin 'head' do
+  instance_name 'special_package_instance'
+  url 'mobz/elasticsearch-head'
 end
 
 elasticsearch_service 'elasticsearch-crazy' do
-  node_name 'crazy'
-  path_conf '/usr/local/awesome/etc/elasticsearch'
-  pid_path '/usr/local/awesome/var/run'
-  user 'foo'
-  group 'bar'
+  instance_name 'special_package_instance'
+  service_actions [:enable, :start]
 end

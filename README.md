@@ -1,33 +1,99 @@
 # Elasticsearch Chef Cookbook
 
 This cookbook has been converted into a library cookbook as of version 1.0.0,
-and supports Chef 12.4.1, 12.3.0, 12.2.1, and higher. It implements support for
-CI as well as more modern testing with chefspec and test-kitchen. It no longer
-supports some of the more extraneous features such as discovery (use [chef search](http://docs.chef.io/chef_search.html) in your wrapper cookbook) or EBS
-device creation (use [the aws cookbook](https://github.com/opscode-cookbooks/aws)).
+and supports Chef 12.5.1, 12.4.3, 12.3.0, 12.2.1, 12.1.2, and higher. It
+implements support for CI as well as more modern testing with chefspec and
+test-kitchen. It no longer supports some of the more extraneous features such as
+discovery (use [chef search](https://docs.chef.io/chef_search.html) in your wrapper cookbook)
+or EBS device creation (use [the aws cookbook](https://github.com/chef-cookbooks/aws)).
+**Previous versions** of this cookbook may be found using the git tags on this
+repository.
 
-The previous version of this cookbook may be found in the [0.3.x branch](https://github.com/elastic/cookbook-elasticsearch/tree/0.3.x).
+## Pre-requisites
 
-## Default version, download URLs, and checksums
-Please consult [attributes/default.rb](attributes/default.rb) for these values.
-Both the recipes and resources/providers here source their default values for
-Elasticsearch version, download URL, and Checksum from `attributes/default.rb`.
+[Java Runtime](https://www.java.com/en/) - This cookbook requires java, but does not provide it. Please install
+Java before using any recipe in this cookbook. Please also note that Elasticsearch itself has specific minimum Java version requirements. We recommend [this cookbook](https://github.com/agileorbit-cookbooks/java) to install Java.
 
-Please take note that you may use `%s` in your URL and this cookbook will use
-sprintf/format to insert the version parameter as a string into your
-download_url.
+[Elasticsearch](https://www.elastic.co/products/elasticsearch) - This cookbook has been upgraded to support Elasticsearch 2.0 and greater. While this cookbook still works with ES 1.7.x at the time of this writing, we expect to eventually **break compatibility in a minor release bump**. If you must have a cookbook that works with older versions of Elasticsearch, please test and then pin to a specific `major.minor` version and only leave the patch release to float.
 
-You may adjust the node attributes to force this cookbook to use different
-default values for all three settings.
+## Attributes
+
+Please consult [attributes/default.rb](attributes/default.rb) for a large list
+of checksums for many different archives and package files of different
+elasticsearch versions. Both recipes and resources/providers here use those
+default values.
+
+You may use `%s` in your URL and this cookbook will use sprintf/format to insert
+the version parameter as a string into your download_url.
+
+|Name|Default|Other values|
+|----|-------|------------|
+|`default['elasticsearch']['version']`|`'2.1.0'`|[See list](attributes/default.rb).|
+|`default['elasticsearch']['install_type']`|`:package`|`:tarball`|
+|`default['elasticsearch']['download_urls']['debian']`|[See values](attributes/default.rb).|`%s` will be replaced with the version attribute above|
+|`default['elasticsearch']['download_urls']['rhel']`|[See values](attributes/default.rb).|`%s` will be replaced with the version attribute above|
+|`default['elasticsearch']['download_urls']['tar']`|[See values](attributes/default.rb).|`%s` will be replaced with the version attribute above|
 
 ## Recipes
 
+Resources are the intended way to consume this cookbook, however we have
+provided a single recipe that configures Elasticsearch by downloading an archive
+containing a distribution of Elasticsearch, and extracting that into /usr/local.
+
+See the attributes section above to for what defaults you can adjust.
+
 ### default
 
-The default recipe creates an elasticsearch user and group with the default
-options.
+The default recipe creates an elasticsearch user, group, package installation,
+configuration files, and service with all of the default options.
 
 ## Resources
+
+## Notifications and Service Start/Restart
+
+The resources provided in this cookbook **do not automatically start or
+restart** services when changes have occurred. This has been done to protect you
+from accidental data loss and service outages, as nodes might restart
+simultaneously or may not restart at all when bad configuration values are
+supplied.
+
+elasticsearch_service has a special `service_actions` parameter you can use to specify what state the underlying service should be in on each chef run (defaults to `:enabled`, but not `:started`). It will also pass through all of the standard `service` resource
+actions to the underlying service resource if you wish to notify it.
+
+
+You **must** supply your desired notifications when using each resource if you
+want Chef to automatically restart services. Again, we don't recommend this.
+
+### Resource names
+
+Many of the resources provided in this cookbook need to share configuration
+values. For example, the `elasticsearch_service` resource needs to know the path
+to the configuration file(s) generated by `elastcisearch_configure` and the path
+to the actual ES binary installed by `elasticsearch_install`. And they both need
+to know the appropriate system user and group defined by `elasticsearch_user`.
+
+Search order: In order to make this easy, all resources in this cookbook use the following
+search order to locate resources that apply to the same overall
+Elasticsearch setup:
+
+1. Resources that share the same resource name
+1. Resources that share the same value for `instance_name`
+1. Resources named `default` or resources named `elasticsearch`
+   - This fails if both `default` and `elasticsearch` resources exist
+
+Examples of more complicated resource names are left to the reader, but here we
+present a typical example that should work in most cases:
+
+```ruby
+elasticsearch_user 'elasticsearch'
+elasticsearch_install 'elasticsearch'
+elasticsearch_configure 'elasticsearch'
+elasticsearch_service 'elasticsearch'
+
+elasticsearch_plugin 'head' do
+  url 'mobz/elasticsearch-head'
+end
+```
 
 ### elasticsearch_user
 Actions: `:create`, `:remove`
@@ -38,15 +104,14 @@ a resource name may be omitted).
 
 Examples:
 
-```
+```ruby
 elasticsearch_user 'elasticsearch'
 ```
 
-```
+```ruby
 elasticsearch_user 'elasticsearch' do
   username 'elasticsearch'
   groupname 'elasticsearch'
-  homedir '/usr/local/elasticsearch'
   shell '/bin/bash'
   comment 'Elasticsearch User'
 
@@ -58,33 +123,37 @@ end
 Actions: `:install`, `:remove`
 
 Downloads the elasticsearch software, and unpacks it on the system. There are
-currently two ways to install -- `package`, which downloads the appropriate
+currently two ways to install -- `:package`, which downloads the appropriate
 package from elasticsearch.org and uses the package manager to install it, and
-`tarball` which downloads a tarball from elasticsearch.org and unpacks it in
-/usr/local on the system. The resource name is not used for anything in
-particular. This resource also comes with a `:remove` action which will remove
-the package or directory elasticsearch was unpacked into.
+`:tarball` which downloads a tarball from elasticsearch.org and unpacks it in
+/usr/local on the system. This resource also comes with a `:remove` action
+which will remove the package or directory elasticsearch was unpacked into.
 
 You may always specify a download_url and/or download_checksum, and you may
 include `%s` which will be replaced by the version parameter you supply.
 
-Please be sure to consult the above section 'Default version, download URLs,
-and checksums' as that controls how Elasticsearch version, download URL and
-checksum are determined if you omit them.
+Please be sure to consult the above attribute section as that controls how
+Elasticsearch version, download URL and checksum are determined if you omit
+them.
 
 Examples:
 
-```
+```ruby
 elasticsearch_install 'elasticsearch'
 ```
 
+```ruby
+elasticsearch_install 'my_es_installation' do
+  type :package # type of install
+  version "1.7.2"
+  action :install # could be :remove as well
+end
 ```
+
+```ruby
 elasticsearch_install 'my_es_installation' do
   type :tarball # type of install
   dir '/usr/local' # where to install
-
-  owner 'elasticsearch' # user and group to install under
-  group 'elasticsearch'
 
   download_url "https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-1.7.2.tar.gz"
   # sha256
@@ -94,7 +163,7 @@ elasticsearch_install 'my_es_installation' do
 end
 ```
 
-```
+```ruby
 elasticsearch_install 'my_es_installation' do
   type :tarball # type of install
   version '1.7.2'
@@ -102,20 +171,13 @@ elasticsearch_install 'my_es_installation' do
 end
 ```
 
-```
+```ruby
 elasticsearch_install 'my_es_installation' do
   type :package # type of install
   download_url "https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-1.7.2.deb"
   # sha256
   download_checksum "791fb9f2131be2cf8c1f86ca35e0b912d7155a53f89c2df67467ca2105e77ec2"
-  action :install # could be :remove as well
-end
-```
-
-```
-elasticsearch_install 'my_es_installation' do
-  type :package # type of install
-  version "1.7.2"
+  instance_name 'elasticsearch'
   action :install # could be :remove as well
 end
 ```
@@ -124,8 +186,8 @@ end
 Actions: `:manage`, `:remove`
 
 Configures an elasticsearch instance; creates directories for configuration,
-logs, and data. Writes files logging.yml, elasticsearch.in.sh and
-elasticsearch.yml.
+logs, and data. Writes files `logging.yml`, `elasticsearch.in.sh` and
+`elasticsearch.yml`.
 
 The main attribute for this resource is `configuration`,
 which is a hash of any elasticsearch configuration directives. The
@@ -142,21 +204,34 @@ for more.
 Examples:
 
 With all defaults -
-```
+```ruby
 elasticsearch_configure 'elasticsearch'
 ```
 
-More complicated -
+With mostly defaults -
+```ruby
+elasticsearch_configure 'elasticsearch' do
+    allocated_memory '512m'
+    configuration ({
+      'cluster.name' => 'escluster',
+      'node.name' => 'node01',
+      'http.port' => 9201
+    })
+end
 ```
+
+Very complicated -
+```ruby
 elasticsearch_configure 'my_elasticsearch' do
   # if you override one of these, you probably want to override all
   dir '/usr/local/awesome'
-  path_conf "/usr/local/awesome/etc/elasticsearch"
-  path_data "/usr/local/awesome/var/data/elasticsearch"
-  path_logs "/usr/local/awesome/var/log/elasticsearch"
+  path_conf     tarball: "/usr/local/awesome/etc/elasticsearch"
+  path_data     tarball: "/usr/local/awesome/var/data/elasticsearch"
+  path_logs     tarball: "/usr/local/awesome/var/log/elasticsearch"
+  path_pid      tarball: "/usr/local/awesome/var/run/elasticsearch"
+  path_plugins  tarball: "/usr/local/elasticsearch/plugins"
+  path_bin      tarball: "/usr/local/bin"
 
-  user 'foo'
-  group 'bar'
   logging({:"action" => 'INFO'})
 
   allocated_memory '123m'
@@ -185,20 +260,11 @@ Actions: `:configure`, `:remove`
 
 Writes out a system service configuration of the appropriate type, and enables
 it to start on boot. You can override almost all of the relevant settings in
-such a way that you may run multiple instances.
+such a way that you may run multiple instances. Most settings will be taken from
+a matching `elasticsearch_config` resource in the collection.
 
-```
+```ruby
 elasticsearch_service 'elasticsearch'
-```
-
-```
-elasticsearch_service 'elasticsearch-crazy' do
-  node_name 'crazy'
-  path_conf '/usr/local/awesome/etc/elasticsearch'
-  pid_path '/usr/local/awesome/var/run'
-  user 'foo'
-  group 'bar'
-end
 ```
 
 ### elasticsearch_plugin
@@ -212,23 +278,74 @@ even what version it is. So once we install a plugin to a directory, we
 generally assume that is the desired one and we don't touch it further.
 
 See https://github.com/elastic/cookbook-elasticsearch/issues/264 for more info.
+NB: You [may encounter issues on certain distros](http://blog.backslasher.net/java-ssl-crash.html) with NSS 3.16.1 and OpenJDK 7.x.
 
-When running a single instance per machine (VM, etc), it's typically
-sufficient to rely on the default value of `plugin_dir`:
+Officially supported or commercial plugins require just the plugin name:
 
+```ruby
+elasticsearch_plugin 'analysis-icu' do
+  action :install
+end
+elasticsearch_plugin 'shield' do
+  action :install
+end
 ```
-elasticsearch_plugin 'mobz/elasticsearch-head'
+
+Plugins from GitHub require a URL of 'username/repository' or 'username/repository/version':
+
+```ruby
+elasticsearch_plugin 'kopf' do
+  url 'lmenezes/elasticsearch-kopf'
+  action :install
+end
+
+elasticsearch_plugin 'kopf' do
+  url 'lmenezes/elasticsearch-kopf/1.5.7'
+  action :install
+end
+```
+
+Plugins from Maven Central or Sonatype require 'groupId/artifactId/version':
+```ruby
+elasticsearch_plugin 'mapper-attachments' do
+  url 'org.elasticsearch/elasticsearch-mapper-attachments/2.6.0'
+  action :install
+end
+```
+
+Plugins can be installed from a custom URL or file location as follows:
+```ruby
+elasticsearch_plugin 'mapper-attachments' do
+  url 'http://some.domain.name//my-plugin-1.0.0.zip'
+  action :install
+end
+
+elasticsearch_plugin 'mapper-attachments' do
+  url 'file:/path/to/my-plugin-1.0.0.zip'
+  action :install
+end
 ```
 
 To run multiple instances per machine, an explicit `plugin_dir` location
 has to be provided:
 
-```
-elasticsearch_plugin 'mobz/elasticsearch-head' do
-  plugin_dir '/usr/local/awesome/elasticsearch-1.7.2/plugins'
+```ruby
+elasticsearch_plugin 'head' do
+  url 'mobz/elasticsearch-head'
+  plugin_dir '/usr/share/elasticsearch_foo/plugins'
 end
 ```
-NB: You [may encounter issues on certain distros](http://blog.backslasher.net/java-ssl-crash.html) with NSS 3.16.1 and OpenJDK 7.x.
+
+If for some reason, you want to name the resource something else, you may
+provide the plugin name using the `name` parameter:
+
+```ruby
+elasticsearch_plugin 'xyzzy' do
+  name 'kopf'
+  url 'lmenezes/elasticsearch-kopf'
+  action :install
+end
+```
 
 ## Testing
 
@@ -307,7 +424,7 @@ Integration tests can be executed using `rake integration` or `kitchen test`.
 
 This software is licensed under the Apache 2 license, quoted below.
 
-    Copyright (c) 2015 Elasticsearch <http://www.elasticsearch.org>
+    Copyright (c) 2015 Elasticsearch <https://www.elastic.co/>
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.

@@ -1,90 +1,99 @@
+# Chef Provider for configuring an elasticsearch service in the init system
+class ElasticsearchCookbook::ServiceProvider < Chef::Provider::LWRPBase
+  provides :elasticsearch_service
+  include ElasticsearchCookbook::Helpers
 
-class Chef
-  # Chef Provider for configuring an elasticsearch service in the init system
-  class Provider::ElasticsearchService < Chef::Provider::LWRPBase
-    action :remove do
-      fail "#{new_resource} remove not currently implemented"
-    end
+  def whyrun_supported?
+    false
+  end
 
-    action :configure do
-      converge_by('configure elasticsearch service') do
-        if node['platform_family'] == 'windows'
-          require 'win32/service'
-          unless ::Win32::Service.exists?(new_resource.service_name)
-            system("#{new_resource.bindir}/service.bat install #{new_resource.service_name}")
-            new_resource.updated_by_last_action(true)
-          end
-        else
-          # pick one if we have been given a path
-          unless new_resource.pid_file
-            new_resource.pid_file "#{new_resource.pid_path}/#{Chef::Config[:node_name].to_s.gsub(/\W/, '_')}.pid"
-          end
+  action :remove do
+    fail "#{new_resource} remove not currently implemented"
+  end
 
-          d_r = directory new_resource.pid_path do
-            mode '0755'
-            recursive true
-            action :nothing
-          end
-          d_r.run_action(:create)
-          new_resource.updated_by_last_action(true) if d_r.updated_by_last_action?
-
-          # Create service
-          #
-          init_r = template "/etc/init.d/#{new_resource.service_name}" do
-            source new_resource.init_source
-            cookbook new_resource.init_cookbook
-            owner 'root'
-            mode 0755
-            variables(nofile_limit: new_resource.nofile_limit,
-                      memlock_limit: new_resource.memlock_limit,
-                      pid_file: new_resource.pid_file,
-                      path_conf: new_resource.path_conf,
-                      user: new_resource.user,
-                      platform_family: node.platform_family,
-                      bindir: new_resource.bindir,
-                      http_port: 9200, # TODO: does the init script really need this?
-                      node_name: new_resource.node_name,
-                      service_name: new_resource.service_name,
-                      args: new_resource.args)
-            action :nothing
-          end
-          init_r.run_action(:create)
-          new_resource.updated_by_last_action(true) if init_r.updated_by_last_action?
-
-          # Increase open file and memory limits
-          #
-          bash_r = bash 'enable user limits' do
-            user 'root'
-
-            code <<-END.gsub(/^              /, '')
-              echo 'session    required   pam_limits.so' >> /etc/pam.d/su
-            END
-
-            not_if { ::File.read('/etc/pam.d/su').match(/^session    required   pam_limits\.so/) }
-            action :nothing
-          end
-          bash_r.run_action(:run)
-          new_resource.updated_by_last_action(true) if bash_r.updated_by_last_action?
-
-          secf_r = file '/etc/security/limits.d/10-elasticsearch.conf' do
-            content <<-END.gsub(/^          /, '')
-              #{new_resource.user} - nofile    #{new_resource.nofile_limit}
-              #{new_resource.user} - memlock   #{new_resource.memlock_limit}
-            END
-          end
-          secf_r.run_action(:create)
-          new_resource.updated_by_last_action(true) if secf_r.updated_by_last_action?
-
-          svc_r = service new_resource.service_name do
-            supports :status => true, :restart => true
-            action :nothing
-          end
-          new_resource.service_actions.each do |act|
-            svc_r.run_action(act)
-            new_resource.updated_by_last_action(true) if svc_r.updated_by_last_action?
-          end
-        end
+  action :configure do
+    if node['platform_family'] == 'windows'
+      require 'win32/service'
+      unless ::Win32::Service.exists?(new_resource.service_name)
+        system("#{new_resource.bindir}/service.bat install #{new_resource.service_name}")
+        new_resource.updated_by_last_action(true)
       end
+    else
+      es_user = find_es_resource(run_context, :elasticsearch_user, new_resource)
+      es_install = find_es_resource(run_context, :elasticsearch_install, new_resource)
+      es_conf = find_es_resource(run_context, :elasticsearch_configure, new_resource)
+
+      d_r = directory es_conf.path_pid[es_install.type] do
+        owner es_user.username
+        group es_user.groupname
+        mode '0755'
+        recursive true
+        action :nothing
+      end
+      d_r.run_action(:create)
+      new_resource.updated_by_last_action(true) if d_r.updated_by_last_action?
+
+      # Create service
+      #
+      init_r = template "/etc/init.d/#{new_resource.service_name}" do
+        source new_resource.init_source
+        cookbook new_resource.init_cookbook
+        owner 'root'
+        mode 0755
+        variables(
+          # we need to include something about #{progname} fixed in here.
+          program_name: new_resource.service_name
+        )
+        action :nothing
+      end
+      init_r.run_action(:create)
+      new_resource.updated_by_last_action(true) if init_r.updated_by_last_action?
+
+      new_resource.service_actions.each do |act|
+        passthrough_action(act)
+      end
+    end
+  end
+
+  # Passthrough actions to service[service_name]
+  #
+  action :enable do
+    passthrough_action(:enable)
+  end
+
+  action :disable do
+    passthrough_action(:disable)
+  end
+
+  action :start do
+    passthrough_action(:start)
+  end
+
+  action :stop do
+    passthrough_action(:stop)
+  end
+
+  action :restart do
+    passthrough_action(:restart)
+  end
+
+  action :status do
+    passthrough_action(:status)
+  end
+
+  def passthrough_action(action)
+    svc_r = lookup_service_resource
+    svc_r.run_action(action)
+    new_resource.updated_by_last_action(true) if svc_r.updated_by_last_action?
+  end
+
+  def lookup_service_resource
+    rc = run_context.resource_collection
+    rc.find("service[#{new_resource.service_name}]")
+  rescue
+    service new_resource.service_name do
+      supports :status => true, :restart => true
+      action :nothing
     end
   end
 end

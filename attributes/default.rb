@@ -1,11 +1,19 @@
 # elasticsearch version & install type
-default['elasticsearch']['version'] = '1.7.3'
-default['elasticsearch']['install_type'] = 'tarball'
+default['elasticsearch']['version'] = '2.1.0'
+default['elasticsearch']['install_type'] = :package
 
 # platform_family keyed download URLs
-default['elasticsearch']['download_urls']['debian'] = 'https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-%s.deb'
-default['elasticsearch']['download_urls']['rhel'] = 'https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-%s.noarch.rpm'
-default['elasticsearch']['download_urls']['tar'] = 'https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-%s.tar.gz'
+default['elasticsearch']['download_urls'] = {
+  'debian' => 'https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-%s.deb',
+  'rhel' => 'https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-%s.noarch.rpm',
+  'tar' => 'https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-%s.tar.gz'
+}
+
+default['elasticsearch']['download_urls_v2'] = {
+  'debian' => 'https://download.elasticsearch.org/elasticsearch/release/org/elasticsearch/distribution/deb/elasticsearch/%s/elasticsearch-%s.deb',
+  'rhel' => 'https://download.elasticsearch.org/elasticsearch/release/org/elasticsearch/distribution/rpm/elasticsearch/%s/elasticsearch-%s.rpm',
+  'tar' => 'https://download.elasticsearch.org/elasticsearch/release/org/elasticsearch/distribution/tar/elasticsearch/%s/elasticsearch-%s.tar.gz'
+}
 
 # platform_family keyed download sha256 checksums
 default['elasticsearch']['checksums']['1.4.5']['debian'] = '68dce951181e9802e94fd83b894f4b628394fc44bb01c77eb61fdbd1940d94b5'
@@ -26,3 +34,15 @@ default['elasticsearch']['checksums']['1.7.2']['tar'] = '6f81935e270c403681e120e
 default['elasticsearch']['checksums']['1.7.3']['debian'] = '52950c688cb3d6a13686753b4e8b1c80183e81174059924ee08b2df172afbb1c'
 default['elasticsearch']['checksums']['1.7.3']['rhel'] = '2380343487ffafc6a7a834cf51d2abbfb7c5ad9d9d45301671adebf97abc632a'
 default['elasticsearch']['checksums']['1.7.3']['tar'] = 'af517611493374cfb2daa8897ae17e63e2efea4d0377d316baa351c1776a2bca'
+default['elasticsearch']['checksums']['2.0.0-rc1']['debian'] = '6ba92f96676932756ff7113f42d8946679e9be2144acece59bd79367568eb712'
+default['elasticsearch']['checksums']['2.0.0-rc1']['rhel'] = '4dd4bdd1b4333f221bc5d2a2638bdc89282d57923842ce4c76607497abafb44d'
+default['elasticsearch']['checksums']['2.0.0-rc1']['tar'] = 'cfd97bba0c49000a2799fffd359ec351f0ca7ef5f0a8c160920137db6b057784'
+default['elasticsearch']['checksums']['2.0.0']['debian'] = 'f846cab2b7e99159650d38767249275c2fd5d3574fe700ef199cd1cb06ef28bf'
+default['elasticsearch']['checksums']['2.0.0']['rhel'] = '6bd2d7840447836450d8781fffa9e296dfb257b523598c6e55433850e37feb25'
+default['elasticsearch']['checksums']['2.0.0']['tar'] = 'b25f13f615337c2072964fd9fc5c7250f8a2a983b22198daf93548285d5d16df'
+default['elasticsearch']['checksums']['2.0.1']['debian'] = '815a7b7d3bbd862c3ec136aa7bfb1adec272bdecdae45233d9ffdf61d307e86c'
+default['elasticsearch']['checksums']['2.0.1']['rhel'] = '69957ef5ee6a142adf02c1065faa29bda7e2cf7f2d5c56edad4852b7f644345a'
+default['elasticsearch']['checksums']['2.0.1']['tar'] = '7be4a6c717002057e422073ca8e957df8b4cb198bf2399a0d79f42121e34798b'
+default['elasticsearch']['checksums']['2.1.0']['debian'] = '099fdeb7b3903ce8cea7d39b577ed6445b78b64d14dd2664fd2ca1e0896691dd'
+default['elasticsearch']['checksums']['2.1.0']['rhel'] = 'a79c1985224c1b57479275794b258f4eba973e0b65f5c62b1c38e02738a1ce71'
+default['elasticsearch']['checksums']['2.1.0']['tar'] = '8a4e85bcb506daa369651506af1cbc55c09fd7ff387d111142ae14d0a85d4d14'
